@@ -1,4 +1,8 @@
-(function() {
+define('misc/clientuicommands', function(require, exports, module) {
+
+    var utils = require('helpers/utils');
+
+    module.exports = ClientUiCommands;
 
     function ClientUiCommands(app, controlbox) {
         this.app = app;
@@ -6,10 +10,7 @@
 
         this.addDefaultAliases();
         this.bindCommand(fn_to_bind);
-    }
-
-    _kiwi.misc.ClientUiCommands = ClientUiCommands;
-
+    };
 
     // Add the default user command aliases
     ClientUiCommands.prototype.addDefaultAliases = function() {
@@ -46,11 +47,22 @@
      * @var command Object {'command:the_command': fn}
      */
     ClientUiCommands.prototype.bindCommand = function(command) {
-        var that = this;
+        var that = this,
+            descriptions = {};
 
         _.each(command, function(fn, event_name) {
-            that.controlbox.on(event_name, _.bind(fn, that));
+            var command_fn;
+            if (typeof fn === 'function') {
+                command_fn = fn;
+            } else {
+                command_fn = fn.fn;
+                descriptions['/' + event_name.split(':')[1]] = fn.description;
+            }
+
+            that.controlbox.on(event_name, _.bind(command_fn, that));
         });
+
+        this.controlbox.setAutoCompleteCommands(descriptions);
     };
 
 
@@ -63,157 +75,182 @@
     var fn_to_bind = {
         'unknown_command':     unknownCommand,
         'command':             allCommands,
-        'command:msg':         msgCommand,
-        'command:action':      actionCommand,
-        'command:join':        joinCommand,
-        'command:part':        partCommand,
-        'command:cycle':        cycleCommand,
-        'command:nick':        nickCommand,
-        'command:query':       queryCommand,
-        'command:invite':      inviteCommand,
-        'command:topic':       topicCommand,
-        'command:notice':      noticeCommand,
-        'command:quote':       quoteCommand,
-        'command:kick':        kickCommand,
-        'command:clear':       clearCommand,
-        'command:ctcp':        ctcpCommand,
-        'command:quit':        quitCommand,
-        'command:server':      serverCommand,
-        'command:whois':       whoisCommand,
-        'command:whowas':      whowasCommand,
-        'command:away':        awayCommand,
-        'command:encoding':    encodingCommand,
+        'command:msg':         {fn: msgCommand, description: 'Send a message'},
+        'command:action':      {fn: actionCommand, description: 'Do something physical'},
+        'command:join':        {fn: joinCommand, description: 'Join a channel'},
+        'command:part':        {fn: partCommand, description: 'Leave a channel'},
+        'command:cycle':       {fn: cycleCommand, description: 'Leave, then re-join a channel'},
+        'command:nick':        {fn: nickCommand, description: 'Change your nickname'},
+        'command:query':       {fn: queryCommand, description: 'Start a private message with someone'},
+        'command:invite':      {fn: inviteCommand, description: 'Invite somebody into the channel'},
+        'command:topic':       {fn: topicCommand, description: 'Set the topic for this channel'},
+        'command:notice':      {fn: noticeCommand, description: 'Send a notice'},
+        'command:quote':       {fn: quoteCommand, description: 'Send a raw command to the IRC server'},
+        'command:kick':        {fn: kickCommand, description: 'Kick sombody from the channel'},
+        'command:clear':       {fn: clearCommand, description: 'Clear all messages from this window'},
+        'command:ctcp':        {fn: ctcpCommand, description: 'Send a CTCP command to somebody'},
+        'command:quit':        {fn: quitCommand, description: 'Disconnect from the IRC server'},
+        'command:server':      {fn: serverCommand, description: 'Conenct to a new IRC network'},
+        'command:whois':       {fn: whoisCommand, description: 'Request information on somebody'},
+        'command:whowas':      {fn: whowasCommand, description: 'Request information on somebody that disconnected recently'},
+        'command:away':        {fn: awayCommand, description: 'Mark yourself as away'},
+        'command:encoding':    {fn: encodingCommand, description: 'Change your connection encoding'},
         'command:channel':     channelCommand,
         'command:applet':      appletCommand,
-        'command:settings':    settingsCommand,
-        'command:script':      scriptCommand
+        'command:settings':    {fn: settingsCommand, description: 'Show the settings window'},
+        'command:script':      {fn: scriptCommand, description: 'Modify kiwi user scripts'}
     };
 
 
-    fn_to_bind['command:css'] = function (ev) {
-        var queryString = '?reload=' + new Date().getTime();
-        $('link[rel="stylesheet"]').each(function () {
-            this.href = this.href.replace(/\?.*|$/, queryString);
-        });
-    };
-
-
-    fn_to_bind['command:js'] = function (ev) {
-        if (!ev.params[0]) return;
-        $script(ev.params[0] + '?' + (new Date().getTime()));
-    };
-
-
-    fn_to_bind['command:set'] = function (ev) {
-        if (!ev.params[0]) return;
-
-        var setting = ev.params[0],
-            value;
-
-        // Do we have a second param to set a value?
-        if (ev.params[1]) {
-            ev.params.shift();
-
-            value = ev.params.join(' ');
-
-            // If we're setting a true boolean value..
-            if (value === 'true')
-                value = true;
-
-            // If we're setting a false boolean value..
-            if (value === 'false')
-                value = false;
-
-            // If we're setting a number..
-            if (parseInt(value, 10).toString() === value)
-                value = parseInt(value, 10);
-
-            _kiwi.global.settings.set(setting, value);
-        }
-
-        // Read the value to the user
-        this.app.panels().active.addMsg('', styleText('set_setting', {text: setting + ' = ' + _kiwi.global.settings.get(setting).toString()}));
-    };
-
-
-    fn_to_bind['command:save'] = function (ev) {
-        _kiwi.global.settings.save();
-        this.app.panels().active.addMsg('', styleText('settings_saved', {text: translateText('client_models_application_settings_saved')}));
-    };
-
-
-    fn_to_bind['command:alias'] = function (ev) {
-        var that = this,
-            name, rule;
-
-        // No parameters passed so list them
-        if (!ev.params[1]) {
-            $.each(this.controlbox.preprocessor.aliases, function (name, rule) {
-                that.app.panels().server.addMsg(' ', styleText('list_aliases', {text: name + '   =>   ' + rule}));
+    fn_to_bind['command:css'] = {
+        description: 'Reload the pages stylesheets',
+        fn: function(ev) {
+            var queryString = '?reload=' + new Date().getTime();
+            $('link[rel="stylesheet"]').each(function () {
+                this.href = this.href.replace(/\?.*|$/, queryString);
             });
-            return;
         }
-
-        // Deleting an alias?
-        if (ev.params[0] === 'del' || ev.params[0] === 'delete') {
-            name = ev.params[1];
-            if (name[0] !== '/') name = '/' + name;
-            delete this.controlbox.preprocessor.aliases[name];
-            return;
-        }
-
-        // Add the alias
-        name = ev.params[0];
-        ev.params.shift();
-        rule = ev.params.join(' ');
-
-        // Make sure the name starts with a slash
-        if (name[0] !== '/') name = '/' + name;
-
-        // Now actually add the alias
-        this.controlbox.preprocessor.aliases[name] = rule;
     };
 
 
-    fn_to_bind['command:ignore'] = function (ev) {
-        var that = this,
-            list = this.app.connections.active_connection.get('ignore_list');
+    fn_to_bind['command:js'] = {
+        descrption: 'Load a javascript file from a URL',
+        fn: function(ev) {
+            if (!ev.params[0]) return;
+            $script(ev.params[0] + '?' + (new Date().getTime()));
+        }
+    };
 
-        // No parameters passed so list them
-        if (!ev.params[0]) {
-            if (list.length > 0) {
-                this.app.panels().active.addMsg(' ', styleText('ignore_title', {text: translateText('client_models_application_ignore_title')}));
-                $.each(list, function (idx, ignored_pattern) {
-                    that.app.panels().active.addMsg(' ', styleText('ignored_pattern', {text: ignored_pattern}));
-                });
-            } else {
-                this.app.panels().active.addMsg(' ', styleText('ignore_none', {text: translateText('client_models_application_ignore_none')}));
+
+    fn_to_bind['command:set'] = {
+        descrption: 'Set a kiwi config setting',
+        fn: function(ev) {
+            if (!ev.params[0]) return;
+
+            var setting = ev.params[0],
+                value;
+
+            // Do we have a second param to set a value?
+            if (ev.params[1]) {
+                ev.params.shift();
+
+                value = ev.params.join(' ');
+
+                // If we're setting a true boolean value..
+                if (value === 'true')
+                    value = true;
+
+                // If we're setting a false boolean value..
+                if (value === 'false')
+                    value = false;
+
+                // If we're setting a number..
+                if (parseInt(value, 10).toString() === value)
+                    value = parseInt(value, 10);
+
+                _kiwi.global.settings.set(setting, value);
             }
-            return;
-        }
 
-        // We have a parameter, so add it
-        list.push(ev.params[0]);
-        this.app.connections.active_connection.set('ignore_list', list);
-        this.app.panels().active.addMsg(' ', styleText('ignore_nick', {text: translateText('client_models_application_ignore_nick', [ev.params[0]])}));
+            // Read the value to the user
+            this.app.panels().active.addMsg('', utils.styleText('set_setting', {text: setting + ' = ' + _kiwi.global.settings.get(setting).toString()}));
+        }
     };
 
 
-    fn_to_bind['command:unignore'] = function (ev) {
-        var list = this.app.connections.active_connection.get('ignore_list');
-
-        if (!ev.params[0]) {
-            this.app.panels().active.addMsg(' ', styleText('ignore_stop_notice', {text: translateText('client_models_application_ignore_stop_notice')}));
-            return;
+    fn_to_bind['command:save'] = {
+        descrption: 'Save the current kiwi settings',
+        fn: function(ev) {
+            _kiwi.global.settings.save();
+            this.app.panels().active.addMsg('', utils.styleText('settings_saved', {text: utils.translateText('client_models_application_settings_saved')}));
         }
+    };
 
-        list = _.reject(list, function(pattern) {
-            return pattern === ev.params[0];
-        });
 
-        this.app.connections.active_connection.set('ignore_list', list);
+    fn_to_bind['command:alias'] = {
+        descrption: 'Create an alias to an existing /command',
+        fn: function(ev) {
+            var that = this,
+                name, rule;
 
-        this.app.panels().active.addMsg(' ', styleText('ignore_stopped', {text: translateText('client_models_application_ignore_stopped', [ev.params[0]])}));
+            // No parameters passed so list them
+            if (!ev.params[1]) {
+                $.each(this.controlbox.preprocessor.aliases, function (name, rule) {
+                    that.app.panels().server.addMsg(' ', utils.styleText('list_aliases', {text: name + '   =>   ' + rule}));
+                });
+                return;
+            }
+
+            // Deleting an alias?
+            if (ev.params[0] === 'del' || ev.params[0] === 'delete') {
+                name = ev.params[1];
+                if (name[0] !== '/') name = '/' + name;
+                delete this.controlbox.preprocessor.aliases[name];
+                return;
+            }
+
+            // Add the alias
+            name = ev.params[0];
+            ev.params.shift();
+            rule = ev.params.join(' ');
+
+            // Make sure the name starts with a slash
+            if (name[0] !== '/') name = '/' + name;
+
+            // Now actually add the alias
+            this.controlbox.preprocessor.aliases[name] = rule;
+        }
+    };
+
+
+    fn_to_bind['command:ignore'] = {
+        descrption: 'Ignore messages from somebody',
+        fn: function(ev) {
+            var that = this,
+                list = this.app.connections.active_connection.get('ignore_list'),
+                user_mask;
+
+            // No parameters passed so list them
+            if (!ev.params[0]) {
+                if (list.length > 0) {
+                    this.app.panels().active.addMsg(' ', utils.styleText('ignore_title', {text: utils.translateText('client_models_application_ignore_title')}));
+                    $.each(list, function (idx, ignored_pattern) {
+                        that.app.panels().active.addMsg(' ', utils.styleText('ignored_pattern', {text: ignored_pattern[0]}));
+                    });
+                } else {
+                    this.app.panels().active.addMsg(' ', utils.styleText('ignore_none', {text: utils.translateText('client_models_application_ignore_none')}));
+                }
+                return;
+            }
+
+            // We have a parameter, so add it, first convert it to regex.
+            user_mask = utils.toUserMask(ev.params[0], true);
+            list.push(user_mask);
+            this.app.connections.active_connection.set('ignore_list', list);
+            this.app.panels().active.addMsg(' ', utils.styleText('ignore_nick', {text: utils.translateText('client_models_application_ignore_nick', [user_mask[0]])}));
+        }
+    };
+
+
+    fn_to_bind['command:unignore'] = {
+        descrption: 'Stop ignoring somebody',
+        fn: function(ev) {
+            var list = this.app.connections.active_connection.get('ignore_list'),
+                user_mask;
+
+            if (!ev.params[0]) {
+                this.app.panels().active.addMsg(' ', utils.styleText('ignore_stop_notice', {text: utils.translateText('client_models_application_ignore_stop_notice')}));
+                return;
+            }
+
+            user_mask = utils.toUserMask(ev.params[0], true);
+            list = _.reject(list, function(pattern) {
+                return pattern[1].toString() === user_mask[1].toString();
+            });
+
+            this.app.connections.active_connection.set('ignore_list', list);
+
+            this.app.panels().active.addMsg(' ', utils.styleText('ignore_stopped', {text: utils.translateText('client_models_application_ignore_stopped', [user_mask[0]])}));
+        }
     };
 
 
@@ -252,7 +289,7 @@
         // Check if we have the panel already. If not, create it
         panel = this.app.connections.active_connection.panels.getByName(destination);
         if (!panel) {
-            panel = new _kiwi.model.Query({name: destination});
+            panel = new (require('models/query'))({name: destination});
             this.app.connections.active_connection.panels.add(panel);
         }
 
@@ -260,7 +297,7 @@
 
         if (message) {
             this.app.connections.active_connection.gateway.msg(panel.get('name'), message);
-            panel.addMsg(this.app.connections.active_connection.get('nick'), styleText('privmsg', {text: message}), 'privmsg');
+            panel.addMsg(this.app.connections.active_connection.get('nick'), utils.styleText('privmsg', {text: message}), 'privmsg');
         }
 
     }
@@ -274,7 +311,7 @@
         ev.params.shift();
         message = ev.params.join(' ');
 
-        panel.addMsg(this.app.connections.active_connection.get('nick'), styleText('privmsg', {text: message}), 'privmsg');
+        panel.addMsg(this.app.connections.active_connection.get('nick'), utils.styleText('privmsg', {text: message}), 'privmsg');
         this.app.connections.active_connection.gateway.msg(destination, message);
     }
 
@@ -285,7 +322,7 @@
         }
 
         var panel = this.app.panels().active;
-        panel.addMsg('', styleText('action', {nick: this.app.connections.active_connection.get('nick'), text: ev.params.join(' ')}), 'action');
+        panel.addMsg('', utils.styleText('action', {nick: this.app.connections.active_connection.get('nick'), text: ev.params.join(' ')}), 'action');
         this.app.connections.active_connection.gateway.action(panel.get('name'), ev.params.join(' '));
     }
 
@@ -411,13 +448,13 @@
 
 
     function settingsCommand (ev) {
-        var settings = _kiwi.model.Applet.loadOnce('kiwi_settings');
+        var settings = require('models/applet').loadOnce('kiwi_settings');
         settings.view.show();
     }
 
 
     function scriptCommand (ev) {
-        var editor = _kiwi.model.Applet.loadOnce('kiwi_script_editor');
+        var editor = require('models/applet').loadOnce('kiwi_script_editor');
         editor.view.show();
     }
 
@@ -425,7 +462,7 @@
     function appletCommand (ev) {
         if (!ev.params[0]) return;
 
-        var panel = new _kiwi.model.Applet();
+        var panel = new (require('models/applet'))();
 
         if (ev.params[1]) {
             // Url and name given
@@ -435,7 +472,7 @@
             if (this.applets[ev.params[0]]) {
                 panel.load(new this.applets[ev.params[0]]());
             } else {
-                this.app.panels().server.addMsg('', styleText('applet_notfound', {text: translateText('client_models_application_applet_notfound', [ev.params[0]])}));
+                this.app.panels().server.addMsg('', utils.styleText('applet_notfound', {text: utils.translateText('client_models_application_applet_notfound', [ev.params[0]])}));
                 return;
             }
         }
@@ -461,7 +498,7 @@
 
         this.app.connections.active_connection.gateway.raw('INVITE ' + nick + ' ' + channel);
 
-        this.app.panels().active.addMsg('', styleText('channel_has_been_invited', {nick: nick, text: translateText('client_models_application_has_been_invited', [channel])}), 'action');
+        this.app.panels().active.addMsg('', utils.styleText('channel_has_been_invited', {nick: nick, text: utils.translateText('client_models_application_has_been_invited', [channel])}), 'action');
     }
 
 
@@ -504,14 +541,14 @@
         if (ev.params[0]) {
             _kiwi.gateway.setEncoding(null, ev.params[0], function (success) {
                 if (success) {
-                    that.app.panels().active.addMsg('', styleText('encoding_changed', {text: translateText('client_models_application_encoding_changed', [ev.params[0]])}));
+                    that.app.panels().active.addMsg('', utils.styleText('encoding_changed', {text: utils.translateText('client_models_application_encoding_changed', [ev.params[0]])}));
                 } else {
-                    that.app.panels().active.addMsg('', styleText('encoding_invalid', {text: translateText('client_models_application_encoding_invalid', [ev.params[0]])}));
+                    that.app.panels().active.addMsg('', utils.styleText('encoding_invalid', {text: utils.translateText('client_models_application_encoding_invalid', [ev.params[0]])}));
                 }
             });
         } else {
-            this.app.panels().active.addMsg('', styleText('client_models_application_encoding_notspecified', {text: translateText('client_models_application_encoding_notspecified')}));
-            this.app.panels().active.addMsg('', styleText('client_models_application_encoding_usage', {text: translateText('client_models_application_encoding_usage')}));
+            this.app.panels().active.addMsg('', utils.styleText('client_models_application_encoding_notspecified', {text: utils.translateText('client_models_application_encoding_notspecified')}));
+            this.app.panels().active.addMsg('', utils.styleText('client_models_application_encoding_usage', {text: utils.translateText('client_models_application_encoding_usage')}));
         }
     }
 
@@ -522,7 +559,7 @@
         if (!active_panel.isChannel())
             return;
 
-        new _kiwi.model.ChannelInfo({channel: this.app.panels().active});
+        new (require('models/channelinfo'))({channel: this.app.panels().active});
     }
 
 
@@ -543,8 +580,8 @@
 
         // If no server address given, show the new connection dialog
         if (!ev.params[0]) {
-            tmp = new _kiwi.view.MenuBox(_kiwi.global.i18n.translate('client_models_application_connection_create').fetch());
-            tmp.addItem('new_connection', new _kiwi.model.NewConnection().view.$el);
+            tmp = new (require('views/menubox'))(_kiwi.global.i18n.translate('client_models_application_connection_create').fetch());
+            tmp.addItem('new_connection', new (require('models/newconnection'))().view.$el);
             tmp.show();
 
             // Center screen the dialog
@@ -586,7 +623,7 @@
         // Use the same nick as we currently have
         nick = this.app.connections.active_connection.get('nick');
 
-        this.app.panels().active.addMsg('', styleText('server_connecting', {text: translateText('client_models_application_connection_connecting', [server, port.toString()])}));
+        this.app.panels().active.addMsg('', utils.styleText('server_connecting', {text: utils.translateText('client_models_application_connection_connecting', [server, port.toString()])}));
 
         _kiwi.gateway.newConnection({
             nick: nick,
@@ -598,10 +635,10 @@
             var translated_err;
 
             if (err) {
-                translated_err = translateText('client_models_application_connection_error', [server, port.toString(), err.toString()]);
-                that.app.panels().active.addMsg('', styleText('server_connecting_error', {text: translated_err}));
+                translated_err = utils.translateText('client_models_application_connection_error', [server, port.toString(), err.toString()]);
+                that.app.panels().active.addMsg('', utils.styleText('server_connecting_error', {text: translated_err}));
             }
         });
     }
 
-})();
+});

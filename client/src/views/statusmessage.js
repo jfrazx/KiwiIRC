@@ -1,42 +1,47 @@
-_kiwi.view.StatusMessage = Backbone.View.extend({
-    initialize: function () {
-        this.$el.hide();
+define('views/statusmessage', function(require, exports, module) {
 
-        // Timer for hiding the message after X seconds
-        this.tmr = null;
-    },
+    var Application = require('models/application');
 
-    text: function (text, opt) {
-        // Defaults
-        opt = opt || {};
-        opt.type = opt.type || '';
-        opt.timeout = opt.timeout || 5000;
+    module.exports = Backbone.View.extend({
+        initialize: function () {
+            this.$el.hide();
 
-        this.$el.text(text).addClass(opt.type);
-        this.$el.slideDown($.proxy(_kiwi.app.view.doLayout, _kiwi.app.view));
+            // Timer for hiding the message after X seconds
+            this.tmr = null;
+        },
 
-        if (opt.timeout) this.doTimeout(opt.timeout);
-    },
+        text: function (text, opt) {
+            // Defaults
+            opt = opt || {};
+            opt.type = opt.type || '';
+            opt.timeout = opt.timeout || 5000;
 
-    html: function (html, opt) {
-        // Defaults
-        opt = opt || {};
-        opt.type = opt.type || '';
-        opt.timeout = opt.timeout || 5000;
+            this.$el.text(text).addClass(opt.type);
+            this.$el.slideDown($.proxy(Application.instance().view.doLayout, Application.instance().view));
 
-        this.$el.html(html).addClass(opt.type);
-        this.$el.slideDown($.proxy(_kiwi.app.view.doLayout, _kiwi.app.view));
+            if (opt.timeout) this.doTimeout(opt.timeout);
+        },
 
-        if (opt.timeout) this.doTimeout(opt.timeout);
-    },
+        html: function (html, opt) {
+            // Defaults
+            opt = opt || {};
+            opt.type = opt.type || '';
+            opt.timeout = opt.timeout || 5000;
 
-    hide: function () {
-        this.$el.slideUp($.proxy(_kiwi.app.view.doLayout, _kiwi.app.view));
-    },
+            this.$el.html(html).addClass(opt.type);
+            this.$el.slideDown($.proxy(Application.instance().view.doLayout, Application.instance().view));
 
-    doTimeout: function (length) {
-        if (this.tmr) clearTimeout(this.tmr);
-        var that = this;
-        this.tmr = setTimeout(function () { that.hide(); }, length);
-    }
+            if (opt.timeout) this.doTimeout(opt.timeout);
+        },
+
+        hide: function () {
+            this.$el.slideUp($.proxy(Application.instance().view.doLayout, Application.instance().view));
+        },
+
+        doTimeout: function (length) {
+            if (this.tmr) clearTimeout(this.tmr);
+            var that = this;
+            this.tmr = setTimeout(function () { that.hide(); }, length);
+        }
+    });
 });

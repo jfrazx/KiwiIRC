@@ -163,7 +163,8 @@
         },
 
         addChannel: function (channels) {
-            var that = this;
+            var that = this,
+                utils = require('helpers/utils');
 
             if (!_.isArray(channels)) {
                 channels = [channels];
@@ -171,7 +172,7 @@
             _.each(channels, function (chan) {
                 var row;
                 row = document.createElement("tr");
-                row.innerHTML = '<td class="chanlist_name"><a class="chan" data-channel="' + chan.channel + '">' + _.escape(chan.channel) + '</a></td><td class="chanlist_num_users" style="text-align: center;">' + chan.num_users + '</td><td style="padding-left: 2em;" class="chanlist_topic">' + formatIRCMsg(_.escape(chan.topic)) + '</td>';
+                row.innerHTML = '<td class="chanlist_name"><a class="chan" data-channel="' + chan.channel + '">' + _.escape(chan.channel) + '</a></td><td class="chanlist_num_users" style="text-align: center;">' + chan.num_users + '</td><td style="padding-left: 2em;" class="chanlist_topic">' + utils.formatIRCMsg(_.escape(chan.topic)) + '</td>';
                 chan.dom = row;
                 that.view.channels.push(chan);
             });
@@ -200,5 +201,5 @@
 
 
 
-    _kiwi.model.Applet.register('kiwi_chanlist', Applet);
+    require('models/applet').register('kiwi_chanlist', Applet);
 })();

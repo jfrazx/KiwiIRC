@@ -1,27 +1,32 @@
-// Model for this = _kiwi.model.NetworkPanelList
-_kiwi.view.NetworkTabs = Backbone.View.extend({
-    tagName: 'ul',
-    className: 'connections',
+// Model for this = require('models/networkpanellist')
+define('views/networktabs', function(require, exports, module) {
 
-    initialize: function() {
-        this.model.on('add', this.networkAdded, this);
-        this.model.on('remove', this.networkRemoved, this);
+    var Application = require('models/application');
 
-        this.$el.appendTo(_kiwi.app.view.$el.find('.tabs'));
-    },
+    module.exports = Backbone.View.extend({
+        tagName: 'ul',
+        className: 'connections',
 
-    networkAdded: function(network) {
-        $('<li class="connection"></li>')
-            .append(network.panels.view.$el)
-            .appendTo(this.$el);
-    },
+        initialize: function() {
+            this.model.on('add', this.networkAdded, this);
+            this.model.on('remove', this.networkRemoved, this);
 
-    networkRemoved: function(network) {
-        // Remove the containing list element
-        network.panels.view.$el.parent().remove();
+            this.$el.appendTo(Application.instance().view.$el.find('.tabs'));
+        },
 
-        network.panels.view.remove();
+        networkAdded: function(network) {
+            $('<li class="connection"></li>')
+                .append(network.panels.view.$el)
+                .appendTo(this.$el);
+        },
 
-        _kiwi.app.view.doLayout();
-    }
+        networkRemoved: function(network) {
+            // Remove the containing list element
+            network.panels.view.$el.parent().remove();
+
+            network.panels.view.remove();
+
+            Application.instance().view.doLayout();
+        }
+    });
 });

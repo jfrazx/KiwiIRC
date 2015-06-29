@@ -1,31 +1,36 @@
-_kiwi.view.ResizeHandler = Backbone.View.extend({
-    events: {
-        'mousedown': 'startDrag',
-        'mouseup': 'stopDrag'
-    },
+define('views/resizehandler', function(require, exports, module) {
 
-    initialize: function () {
-        this.dragging = false;
-        this.starting_width = {};
+    var Application = require('models/application');
 
-        $(window).on('mousemove', $.proxy(this.onDrag, this));
-    },
+    module.exports = Backbone.View.extend({
+        events: {
+            'mousedown': 'startDrag',
+            'mouseup': 'stopDrag'
+        },
 
-    startDrag: function (event) {
-        this.dragging = true;
-    },
+        initialize: function () {
+            this.dragging = false;
+            this.starting_width = {};
 
-    stopDrag: function (event) {
-        this.dragging = false;
-    },
+            $(window).on('mousemove', $.proxy(this.onDrag, this));
+        },
 
-    onDrag: function (event) {
-        if (!this.dragging) return;
+        startDrag: function (event) {
+            this.dragging = true;
+        },
 
-        var offset = $('#kiwi').offset().left;
+        stopDrag: function (event) {
+            this.dragging = false;
+        },
 
-        this.$el.css('left', event.clientX - (this.$el.outerWidth(true) / 2) - offset);
-        $('#kiwi .right_bar').css('width', this.$el.parent().width() - (this.$el.position().left + this.$el.outerWidth()));
-        _kiwi.app.view.doLayout();
-    }
+        onDrag: function (event) {
+            if (!this.dragging) return;
+
+            var offset = $('#kiwi').offset().left;
+
+            this.$el.css('left', event.clientX - (this.$el.outerWidth(true) / 2) - offset);
+            $('#kiwi .right_bar').css('width', this.$el.parent().width() - (this.$el.position().left + this.$el.outerWidth()));
+            Application.instance().view.doLayout();
+        }
+    });
 });

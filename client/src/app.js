@@ -1,12 +1,13 @@
+var defreq = new DefineNRequire(),
+    define = defreq.define,
+    require = defreq.require;
+
 // Holds anything kiwi client specific (ie. front, gateway, _kiwi.plugs..)
 /**
 *   @namespace
 */
 var _kiwi = {};
 
-_kiwi.misc = {};
-_kiwi.model = {};
-_kiwi.view = {};
 _kiwi.applets = {};
 _kiwi.utils = {};
 
@@ -18,28 +19,23 @@ _kiwi.utils = {};
  */
 _kiwi.global = {
     build_version: '',  // Kiwi IRC version this is built from (Set from index.html)
-    settings: undefined, // Instance of _kiwi.model.DataStore
-    plugins: undefined, // Instance of _kiwi.model.PluginManager
+    settings: undefined, // Instance of require('models/datastore')
+    plugins: undefined, // Instance of require('models/pluginmanager')
     events: undefined, // Instance of PluginInterface
     rpc: undefined, // Instance of WebsocketRpc
     utils: {}, // References to misc. re-usable helpers / functions
 
     // Make public some internal utils for plugins to make use of
     initUtils: function() {
-        this.utils.randomString = randomString;
-        this.utils.secondsToTime = secondsToTime;
-        this.utils.parseISO8601 = parseISO8601;
-        this.utils.escapeRegex = escapeRegex;
-        this.utils.formatIRCMsg = formatIRCMsg;
-        this.utils.styleText = styleText;
-        this.utils.hsl2rgb = hsl2rgb;
+        var utils = require('helpers/utils');
+        _.extend(this.utils, utils);
 
-        this.utils.notifications = _kiwi.utils.notifications;
-        this.utils.formatDate = _kiwi.utils.formatDate;
+        this.utils.notifications = require('utils/notifications');
+        this.utils.formatDate = require('utils/formatdate');
     },
 
     addMediaMessageType: function(match, buildHtml) {
-        _kiwi.view.MediaMessage.addType(match, buildHtml);
+        require('views/mediamessage').addType(match, buildHtml);
     },
 
     // Event managers for plugins
@@ -91,7 +87,8 @@ _kiwi.global = {
         },
 
         Network: function(connection_id) {
-            var connection_event;
+            var app = require('models/application').instance(),
+                connection_event;
 
             // If no connection id given, use all connections
             if (typeof connection_id !== 'undefined') {
@@ -103,8 +100,8 @@ _kiwi.global = {
             // Helper to get the network object
             var getNetwork = function() {
                 var network = typeof connection_id === 'undefined' ?
-                    _kiwi.app.connections.active_connection :
-                    _kiwi.app.connections.getByConnectionId(connection_id);
+                    app.connections.active_connection :
+                    app.connections.getByConnectionId(connection_id);
 
                 return network ?
                     network :
@@ -181,7 +178,8 @@ _kiwi.global = {
         },
 
         ControlInput: function() {
-            var obj = new this.EventComponent(_kiwi.app.controlbox);
+            var app = require('models/application').instance();
+            var obj = new this.EventComponent(app.controlbox);
             var funcs = {
                 run: 'processInput', addPluginIcon: 'addPluginIcon'
             };
@@ -189,12 +187,12 @@ _kiwi.global = {
             _.each(funcs, function(controlbox_fn, func_name) {
                 obj[func_name] = function() {
                     var fn_name = controlbox_fn;
-                    return _kiwi.app.controlbox[fn_name].apply(_kiwi.app.controlbox, arguments);
+                    return app.controlbox[fn_name].apply(app.controlbox, arguments);
                 };
             });
 
             // Give access to the control input textarea
-            obj.input = _kiwi.app.controlbox.$('.inp');
+            obj.input = app.controlbox.$('.inp');
 
             return obj;
         }
@@ -210,7 +208,7 @@ _kiwi.global = {
         this.initUtils();
 
         // Set up the settings datastore
-        _kiwi.global.settings = _kiwi.model.DataStore.instance('kiwi.settings');
+        _kiwi.global.settings = require('models/datastore').instance('kiwi.settings');
         _kiwi.global.settings.load();
 
         // Set the window title
@@ -239,16 +237,16 @@ _kiwi.global = {
 
 
         Promise.all([locale_promise, theme_promise]).then(function () {
-            _kiwi.app = new _kiwi.model.Application(opts);
+            _kiwi.app = new (require('models/application'))(opts);
 
             // Start the client up
             _kiwi.app.initializeInterfaces();
 
             // Event emitter to let plugins interface with parts of kiwi
-            _kiwi.global.events  = new PluginInterface();
+            _kiwi.global.events  = new (require('helpers/plugininterface'))();
 
             // Now everything has started up, load the plugin manager for third party plugins
-            _kiwi.global.plugins = new _kiwi.model.PluginManager();
+            _kiwi.global.plugins = new (require('models/pluginmanager'))();
 
             callback();
 
@@ -258,12 +256,14 @@ _kiwi.global = {
     },
 
     start: function() {
-        _kiwi.app.showStartup();
+        var app = require('models/application').instance();
+        app.showStartup();
     },
 
     // Allow plugins to change the startup applet
     registerStartupApplet: function(startup_applet_name) {
-        _kiwi.app.startup_applet_name = startup_applet_name;
+        var app = require('models/application').instance();
+        app.startup_applet_name = startup_applet_name;
     },
 
     /**
@@ -280,6 +280,7 @@ _kiwi.global = {
      * Taking settings from the server and URL, extract the default server/channel/nick settings
      */
     defaultServerSettings: function () {
+        var app = require('models/application').instance();
         var parts;
         var defaults = {
             nick: '',
@@ -296,24 +297,24 @@ _kiwi.global = {
          * Get any settings set by the server
          * These settings may be changed in the server selection dialog or via URL parameters
          */
-        if (_kiwi.app.server_settings.client) {
-            if (_kiwi.app.server_settings.client.nick)
-                defaults.nick = _kiwi.app.server_settings.client.nick;
+        if (app.server_settings.client) {
+            if (app.server_settings.client.nick)
+                defaults.nick = app.server_settings.client.nick;
 
-            if (_kiwi.app.server_settings.client.server)
-                defaults.server = _kiwi.app.server_settings.client.server;
+            if (app.server_settings.client.server)
+                defaults.server = app.server_settings.client.server;
 
-            if (_kiwi.app.server_settings.client.port)
-                defaults.port = _kiwi.app.server_settings.client.port;
+            if (app.server_settings.client.port)
+                defaults.port = app.server_settings.client.port;
 
-            if (_kiwi.app.server_settings.client.ssl)
-                defaults.ssl = _kiwi.app.server_settings.client.ssl;
+            if (app.server_settings.client.ssl)
+                defaults.ssl = app.server_settings.client.ssl;
 
-            if (_kiwi.app.server_settings.client.channel)
-                defaults.channel = _kiwi.app.server_settings.client.channel;
+            if (app.server_settings.client.channel)
+                defaults.channel = app.server_settings.client.channel;
 
-            if (_kiwi.app.server_settings.client.channel_key)
-                defaults.channel_key = _kiwi.app.server_settings.client.channel_key;
+            if (app.server_settings.client.channel_key)
+                defaults.channel_key = app.server_settings.client.channel_key;
         }
 
 
@@ -332,7 +333,7 @@ _kiwi.global = {
 
 
         // Process the URL part by part, extracting as we go
-        parts = window.location.pathname.toString().replace(_kiwi.app.get('base_path'), '').split('/');
+        parts = window.location.pathname.toString().replace(app.get('base_path'), '').split('/');
 
         if (parts.length > 0) {
             parts.shift();
@@ -401,29 +402,17 @@ _kiwi.global = {
          * Get any server restrictions as set in the server config
          * These settings can not be changed in the server selection dialog
          */
-        if (_kiwi.app.server_settings && _kiwi.app.server_settings.connection) {
-            if (_kiwi.app.server_settings.connection.server) {
-                defaults.server = _kiwi.app.server_settings.connection.server;
+        if (app.server_settings && app.server_settings.connection) {
+            if (app.server_settings.connection.server) {
+                defaults.server = app.server_settings.connection.server;
             }
 
-            if (_kiwi.app.server_settings.connection.port) {
-                defaults.port = _kiwi.app.server_settings.connection.port;
+            if (app.server_settings.connection.port) {
+                defaults.port = app.server_settings.connection.port;
             }
 
-            if (_kiwi.app.server_settings.connection.ssl) {
-                defaults.ssl = _kiwi.app.server_settings.connection.ssl;
-            }
-
-            if (_kiwi.app.server_settings.connection.channel) {
-                defaults.channel = _kiwi.app.server_settings.connection.channel;
-            }
-
-            if (_kiwi.app.server_settings.connection.channel_key) {
-                defaults.channel_key = _kiwi.app.server_settings.connection.channel_key;
-            }
-
-            if (_kiwi.app.server_settings.connection.nick) {
-                defaults.nick = _kiwi.app.server_settings.connection.nick;
+            if (app.server_settings.connection.ssl) {
+                defaults.ssl = app.server_settings.connection.ssl;
             }
         }
 

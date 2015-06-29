@@ -1,42 +1,47 @@
-_kiwi.view.Notification = Backbone.View.extend({
-    className: 'notification',
+define('views/notification', function(require, exports, module) {
 
-    events: {
-        'click .close': 'close'
-    },
+    var Application = require('models/application');
 
-    initialize: function(title, content) {
-        this.title = title;
-        this.content = content;
-    },
+    module.exports = Backbone.View.extend({
+        className: 'notification',
 
-    render: function() {
-        this.$el.html($('#tmpl_notifications').html());
-        this.$('h6').text(this.title);
+        events: {
+            'click .close': 'close'
+        },
 
-        // HTML string or jquery object
-        if (typeof this.content === 'string') {
-                this.$('.content').html(this.content);
-            } else if (typeof this.content === 'object') {
-                this.$('.content').empty().append(this.content);
-            }
+        initialize: function(title, content) {
+            this.title = title;
+            this.content = content;
+        },
 
-        return this;
-    },
+        render: function() {
+            this.$el.html($('#tmpl_notifications').html());
+            this.$('h6').text(this.title);
 
-    show: function() {
-        var that = this;
+            // HTML string or jquery object
+            if (typeof this.content === 'string') {
+                    this.$('.content').html(this.content);
+                } else if (typeof this.content === 'object') {
+                    this.$('.content').empty().append(this.content);
+                }
 
-        this.render().$el.appendTo(_kiwi.app.view.$el);
+            return this;
+        },
 
-        // The element won't have any CSS transitions applied
-        // until after a tick + paint.
-        _.defer(function() {
-            that.$el.addClass('show');
-        });
-    },
+        show: function() {
+            var that = this;
 
-    close: function() {
-        this.remove();
-    }
+            this.render().$el.appendTo(Application.instance().view.$el);
+
+            // The element won't have any CSS transitions applied
+            // until after a tick + paint.
+            _.defer(function() {
+                that.$el.addClass('show');
+            });
+        },
+
+        close: function() {
+            this.remove();
+        }
+    });
 });

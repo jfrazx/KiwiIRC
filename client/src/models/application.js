@@ -1,13 +1,20 @@
-(function () {
+define('models/application', function(require, exports, module) {
 
-    _kiwi.model.Application = Backbone.Model.extend({
-        /** _kiwi.view.Application */
+    var utils = require('helpers/utils');
+
+    // Singleton instance
+    var instance = null;
+
+    module.exports = Backbone.Model.extend({
+        /** require('views/application') */
         view: null,
 
-        /** _kiwi.view.StatusMessage */
+        /** require('views/statusmessage') */
         message: null,
 
         initialize: function (options) {
+            instance = this;
+
             this.app_options = options;
 
             if (options.container) {
@@ -44,7 +51,7 @@
             var kiwi_server = this.app_options.kiwi_server || this.detectKiwiServer();
 
             // Set the gateway up
-            _kiwi.gateway = new _kiwi.model.Gateway({kiwi_server: kiwi_server});
+            _kiwi.gateway = new (require('models/gateway'))({kiwi_server: kiwi_server});
             this.bindGatewayCommands(_kiwi.gateway);
 
             this.initializeClient();
@@ -66,7 +73,7 @@
 
 
         showStartup: function() {
-            this.startup_applet = _kiwi.model.Applet.load(this.startup_applet_name, {no_tab: true});
+            this.startup_applet = require('models/applet').load(this.startup_applet_name, {no_tab: true});
             this.startup_applet.tab = this.view.$('.console');
             this.startup_applet.view.show();
 
@@ -75,10 +82,10 @@
 
 
         initializeClient: function () {
-            this.view = new _kiwi.view.Application({model: this, el: this.get('container')});
+            this.view = new (require('views/application'))({model: this, el: this.get('container')});
 
             // Takes instances of model_network
-            this.connections = new _kiwi.model.NetworkPanelList();
+            this.connections = new (require('models/networkpanellist'))();
 
             // If all connections are removed at some point, hide the bars
             this.connections.on('remove', _.bind(function() {
@@ -88,25 +95,25 @@
             }, this));
 
             // Applets panel list
-            this.applet_panels = new _kiwi.model.PanelList();
+            this.applet_panels = new (require('models/panellist'))();
             this.applet_panels.view.$el.addClass('panellist applets');
             this.view.$el.find('.tabs').append(this.applet_panels.view.$el);
 
             /**
              * Set the UI components up
              */
-            this.controlbox = (new _kiwi.view.ControlBox({el: $('#kiwi .controlbox')[0]})).render();
-            this.client_ui_commands = new _kiwi.misc.ClientUiCommands(this, this.controlbox);
+            this.controlbox = (new (require('views/controlbox'))({el: $('#kiwi .controlbox')[0]})).render();
+            this.client_ui_commands = new (require('misc/clientuicommands'))(this, this.controlbox);
 
-            this.rightbar = new _kiwi.view.RightBar({el: this.view.$('.right_bar')[0]});
-            this.topicbar = new _kiwi.view.TopicBar({el: this.view.$el.find('.topic')[0]});
+            this.rightbar = new (require('views/rightbar'))({el: this.view.$('.right_bar')[0]});
+            this.topicbar = new (require('views/topicbar'))({el: this.view.$el.find('.topic')[0]});
 
-            new _kiwi.view.AppToolbar({el: _kiwi.app.view.$el.find('.toolbar .app_tools')[0]});
-            new _kiwi.view.ChannelTools({el: _kiwi.app.view.$el.find('.channel_tools')[0]});
+            new (require('views/apptoolbar'))({el: this.view.$el.find('.toolbar .app_tools')[0]});
+            new (require('views/channeltools'))({el: this.view.$el.find('.channel_tools')[0]});
 
-            this.message = new _kiwi.view.StatusMessage({el: this.view.$el.find('.status_message')[0]});
+            this.message = new (require('views/statusmessage'))({el: this.view.$el.find('.status_message')[0]});
 
-            this.resize_handle = new _kiwi.view.ResizeHandler({el: this.view.$el.find('.memberlists_resize_handle')[0]});
+            this.resize_handle = new (require('views/resizehandler'))({el: this.view.$el.find('.memberlists_resize_handle')[0]});
 
             // Rejigg the UI sizes
             this.view.doLayout();
@@ -119,11 +126,11 @@
             _kiwi.global.panels = this.panels;
             _kiwi.global.panels.applets = this.applet_panels;
 
-            _kiwi.global.components.Applet = _kiwi.model.Applet;
-            _kiwi.global.components.Panel =_kiwi.model.Panel;
-            _kiwi.global.components.MenuBox = _kiwi.view.MenuBox;
-            _kiwi.global.components.DataStore = _kiwi.model.DataStore;
-            _kiwi.global.components.Notification = _kiwi.view.Notification;
+            _kiwi.global.components.Applet = require('models/applet');
+            _kiwi.global.components.Panel =require('models/panel');
+            _kiwi.global.components.MenuBox = require('views/menubox');
+            _kiwi.global.components.DataStore = require('models/datastore');
+            _kiwi.global.components.Notification = require('views/notification');
             _kiwi.global.components.Events = function() {
                 return kiwi.events.createProxy();
             };
@@ -143,7 +150,7 @@
             var active_panel;
 
             var fn = function(panel_type) {
-                var app = _kiwi.app,
+                var application = require('models/application').instance(),
                     panels;
 
                 // Default panel type
@@ -151,17 +158,17 @@
 
                 switch (panel_type) {
                 case 'connections':
-                    panels = app.connections.panels();
+                    panels = application.connections.panels();
                     break;
                 case 'applets':
-                    panels = app.applet_panels.models;
+                    panels = application.applet_panels.models;
                     break;
                 }
 
                 // Active panels / server
                 panels.active = active_panel;
-                panels.server = app.connections.active_connection ?
-                    app.connections.active_connection.panels.server :
+                panels.server = application.connections.active_connection ?
+                    application.connections.active_connection.panels.server :
                     null;
 
                 return panels;
@@ -206,11 +213,11 @@
 
 
                 gw.on('reconnecting', function (event) {
-                    var msg = translateText('client_models_application_reconnect_in_x_seconds', [event.delay/1000]) + '...';
+                    var msg = utils.translateText('client_models_application_reconnect_in_x_seconds', [event.delay/1000]) + '...';
 
                     // Only need to mention the repeating re-connection messages on server panels
-                    _kiwi.app.connections.forEach(function(connection) {
-                        connection.panels.server.addMsg('', styleText('quit', {text: msg}), 'action quit');
+                    that.connections.forEach(function(connection) {
+                        connection.panels.server.addMsg('', utils.styleText('quit', {text: msg}), 'action quit');
                     });
                 });
 
@@ -232,20 +239,20 @@
                         // No longer in the reconnection state
                         gw_stat = 0;
 
-                        msg = translateText('client_models_application_reconnect_successfully') + ' :)';
+                        msg = utils.translateText('client_models_application_reconnect_successfully') + ' :)';
                         that.message.text(msg, {timeout: 5000});
 
                         // Mention the re-connection on every channel
-                        _kiwi.app.connections.forEach(function(connection) {
+                        that.connections.forEach(function(connection) {
                             connection.reconnect();
 
-                            connection.panels.server.addMsg('', styleText('rejoin', {text: msg}), 'action join');
+                            connection.panels.server.addMsg('', utils.styleText('rejoin', {text: msg}), 'action join');
 
                             connection.panels.forEach(function(panel) {
                                 if (!panel.isChannel())
                                     return;
 
-                                panel.addMsg('', styleText('rejoin', {text: msg}), 'action join');
+                                panel.addMsg('', utils.styleText('rejoin', {text: msg}), 'action join');
                             });
                         });
                     }
@@ -302,6 +309,10 @@
             });
         }
 
+    }, {
+        instance: function() {
+            return instance;
+        }
     });
 
-})();
+});

@@ -1,16 +1,21 @@
-_kiwi.view.ChannelTools = Backbone.View.extend({
-    events: {
-        'click .channel_info': 'infoClick',
-        'click .channel_part': 'partClick'
-    },
+define('views/channeltools', function(require, exports, module) {
 
-    initialize: function () {},
+    var Application = require('models/application');
 
-    infoClick: function (event) {
-        new _kiwi.model.ChannelInfo({channel: _kiwi.app.panels().active});
-    },
+    module.exports = Backbone.View.extend({
+        events: {
+            'click .channel_info': 'infoClick',
+            'click .channel_part': 'partClick'
+        },
 
-    partClick: function (event) {
-        _kiwi.app.connections.active_connection.gateway.part(_kiwi.app.panels().active.get('name'));
-    }
+        initialize: function () {},
+
+        infoClick: function (event) {
+            new (require('models/channelinfo'))({channel: Application.instance().panels().active});
+        },
+
+        partClick: function (event) {
+            Application.instance().connections.active_connection.gateway.part(Application.instance().panels().active.get('name'));
+        }
+    });
 });

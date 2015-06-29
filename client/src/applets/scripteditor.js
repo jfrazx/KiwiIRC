@@ -6,6 +6,7 @@
 
             initialize: function (options) {
                 var that = this,
+                    app = require('models/application').instance(),
                     text = {
                         save: _kiwi.global.i18n.translate('client_applets_scripteditor_save').fetch()
                     };
@@ -13,7 +14,7 @@
 
                 this.model.on('applet_loaded', function () {
                     that.$el.parent().css('height', '100%');
-                    $script(_kiwi.app.get('base_path') + '/assets/libs/ace/ace.js', function (){ that.createAce(); });
+                    $script(app.get('base_path') + '/assets/libs/ace/ace.js', function (){ that.createAce(); });
                 });
             },
 
@@ -93,6 +94,6 @@
         });
 
 
-        _kiwi.model.Applet.register('kiwi_script_editor', applet);
-        //_kiwi.model.Applet.loadOnce('kiwi_script_editor');
+        require('models/applet').register('kiwi_script_editor', applet);
+        //require('models/applet').loadOnce('kiwi_script_editor');
     })();
